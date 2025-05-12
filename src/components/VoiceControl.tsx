@@ -44,7 +44,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({
       }
     };
     
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       if (event.error === 'no-speech') {
         // This is a common error that we don't need to show to users
         return;
