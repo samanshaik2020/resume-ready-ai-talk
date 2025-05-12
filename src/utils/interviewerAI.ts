@@ -16,7 +16,8 @@ export class InterviewerAI {
   private resumeData: ResumeData | null = null;
   private conversation: Message[] = [];
   private interviewState: 'waiting' | 'answering' = 'waiting';
-  private apiKey: string = import.meta.env.VITE_OPENROUTER_API_KEY || "";
+  // Use environment variable with fallback for the API key
+  private apiKey: string = import.meta.env.VITE_OPENROUTER_API_KEY || "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";
 
   // Sample skills and experience to use in responses if no resume data is available
   private fallbackSkills = [
