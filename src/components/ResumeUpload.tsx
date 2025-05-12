@@ -1,9 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { parseResumePDF, parseResumeText } from '@/utils/resumeParser';
 import { useToast } from '@/components/ui/use-toast';
+import { initPDFJS } from '@/utils/pdfParser';
+import { Progress } from '@/components/ui/progress';
 
 interface ResumeUploadProps {
   onResumeProcessed: (resumeData: any) => void;
@@ -12,9 +14,15 @@ interface ResumeUploadProps {
 const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeProcessed }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [textInput, setTextInput] = useState('');
   const [uploadType, setUploadType] = useState<'file' | 'text'>('file');
   const { toast } = useToast();
+  
+  // Initialize PDF.js when component mounts
+  useEffect(() => {
+    initPDFJS();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -29,36 +37,80 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeProcessed }) => {
   const handleSubmit = async () => {
     try {
       setIsUploading(true);
+      setProgress(10);
 
       if (uploadType === 'file' && file) {
-        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          const resumeData = await parseResumePDF(file);
+        // Show parsing progress
+        setProgress(30);
+        
+        try {
+          let resumeData;
+          
+          if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+            // Process PDF
+            setProgress(50);
+            resumeData = await parseResumePDF(file);
+          } else {
+            // Process text file
+            setProgress(50);
+            const text = await file.text();
+            resumeData = await parseResumeText(text);
+          }
+          
+          // Text extraction complete
+          setProgress(70);
+          
+          // Log the extracted data for debugging
+          console.log('Extracted resume data:', resumeData);
+          
+          // Processing complete
+          setProgress(100);
+          
+          // Pass the extracted data to the parent component
           onResumeProcessed(resumeData);
+          
           toast({
             title: 'Resume Uploaded',
-            description: 'Your resume has been successfully analyzed.',
+            description: 'Your resume has been successfully analyzed and loaded into the AI.',
           });
-        } else {
-          // Assume it's a text file
-          const text = await file.text();
-          const resumeData = await parseResumeText(text);
-          onResumeProcessed(resumeData);
+        } catch (error) {
+          console.error('Error parsing file:', error);
           toast({
-            title: 'Resume Uploaded',
-            description: 'Your resume has been successfully analyzed.',
+            title: 'Parsing Error',
+            description: 'Error parsing your resume. Please try a different file or paste the text directly.',
+            variant: 'destructive',
           });
         }
       } else if (uploadType === 'text' && textInput.trim()) {
-        const resumeData = await parseResumeText(textInput);
+        // Process pasted text
+        setProgress(30);
+        
+        // Format the pasted text to ensure consistent spacing
+        let formattedText = textInput;
+        
+        // Handle example resume format with special characters
+        formattedText = formattedText.replace(/◇/g, ' | '); // Replace diamond with pipe
+        
+        // Make sure bullet points are consistent
+        formattedText = formattedText.replace(/•/g, '•'); // Standardize bullets
+        
+        setProgress(50);
+        const resumeData = await parseResumeText(formattedText);
+        
+        // Show projects in console for debugging
+        console.log('Extracted Projects:', resumeData.projects);
+        
+        setProgress(100);
         onResumeProcessed(resumeData);
+        
         toast({
           title: 'Resume Processed',
-          description: 'Your resume text has been successfully analyzed.',
+          description: `Your resume has been analyzed. Found ${resumeData.projects.length} projects and ${resumeData.skills.length} skills.`,
         });
       } else {
         toast({
-          title: 'Error',
-          description: 'Please upload a file or enter resume text.',
+          title: 'Input Required',
+          description: 'Please upload a file or enter resume text to continue.',
           variant: 'destructive',
         });
       }
@@ -71,6 +123,8 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeProcessed }) => {
       });
     } finally {
       setIsUploading(false);
+      // Reset progress after a short delay to show completion
+      setTimeout(() => setProgress(0), 1000);
     }
   };
 
@@ -158,13 +212,22 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ onResumeProcessed }) => {
           </div>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-col gap-4">
+        {progress > 0 && (
+          <div className="w-full space-y-2">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Analyzing resume...</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
+        )}
         <Button
           onClick={handleSubmit}
           disabled={isUploading || (uploadType === 'file' && !file) || (uploadType === 'text' && !textInput.trim())}
           className="w-full"
         >
-          {isUploading ? "Processing..." : "Start Interview"}
+          {isUploading ? "Processing Resume..." : "Start Interview"}
         </Button>
       </CardFooter>
     </Card>
