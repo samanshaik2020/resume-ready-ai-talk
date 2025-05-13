@@ -16,7 +16,7 @@ export class InterviewerAI {
   private resumeData: ResumeData | null = null;
   private conversation: Message[] = [];
   private interviewState: 'waiting' | 'answering' = 'waiting';
-  private apiKey: string = "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";
+  private apiKey: string = "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";
 
   // Sample skills and experience to use in responses if no resume data is available
   private fallbackSkills = [
